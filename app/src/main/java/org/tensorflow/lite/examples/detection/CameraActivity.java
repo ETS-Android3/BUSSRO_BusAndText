@@ -37,6 +37,8 @@ import android.os.Trace;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 import androidx.appcompat.widget.Toolbar;
+
+import android.os.Vibrator;
 import android.util.Size;
 import android.view.Surface;
 import android.view.View;
@@ -87,6 +89,9 @@ public abstract class CameraActivity extends AppCompatActivity
   private SwitchCompat apiSwitchCompat;
   private TextView threadsTextView;
 
+  protected Vibrator vibrator;  // 진동
+
+
   @Override
   protected void onCreate(final Bundle savedInstanceState) {
     LOGGER.d("onCreate " + this);
@@ -105,6 +110,9 @@ public abstract class CameraActivity extends AppCompatActivity
     } else {
       requestPermission();
     }
+
+    vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+
 
     threadsTextView = findViewById(R.id.threads);
     plusImageView = findViewById(R.id.plus);
@@ -353,7 +361,7 @@ public abstract class CameraActivity extends AppCompatActivity
       if (allPermissionsGranted(grantResults)) {
         setFragment();
       } else {
-        requestPermission();
+        requestPermission(); // 여기가 문제인덧?
       }
     }
   }

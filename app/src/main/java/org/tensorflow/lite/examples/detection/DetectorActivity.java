@@ -16,6 +16,11 @@
 
 package org.tensorflow.lite.examples.detection;
 
+import static android.os.VibrationEffect.EFFECT_CLICK;
+import static android.os.VibrationEffect.EFFECT_HEAVY_CLICK;
+import static android.os.VibrationEffect.EFFECT_TICK;
+import static android.view.HapticFeedbackConstants.CLOCK_TICK;
+
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
@@ -27,23 +32,26 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.location.Location;
 import android.media.ImageReader.OnImageAvailableListener;
+import android.os.Build;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
 import android.util.Size;
 import android.util.TypedValue;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
+import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,10 +73,10 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
   private static final Logger LOGGER = new Logger();
 
   // Configuration values for the prepackaged SSD model.
-  private static final int TF_OD_API_INPUT_SIZE = 720;
+  private static final int TF_OD_API_INPUT_SIZE = 320; // // detect.tflite = 300, model.tflite = 448 ??
   private static final boolean TF_OD_API_IS_QUANTIZED = true;
-  private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
-  private static final String TF_OD_API_LABELS_FILE = "labelmap.txt";
+  private static final String TF_OD_API_MODEL_FILE = "model2.tflite"; // detect or model
+  private static final String TF_OD_API_LABELS_FILE = "labelmap2.txt"; // labelmap or labelmap2
   private static final DetectorMode MODE = DetectorMode.TF_OD_API;
   // Minimum detection confidence to track a detection.
   private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
@@ -192,8 +200,11 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
       ImageUtils.saveBitmap(croppedBitmap);
     }
 
+    RectF previewRect = new RectF(0, 0, previewWidth, previewHeight);
+
     runInBackground(
         new Runnable() {
+          @RequiresApi(api = Build.VERSION_CODES.Q)
           @Override
           public void run() {
             LOGGER.i("Running detection on image " + currTimestamp);
@@ -210,45 +221,47 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
 
             //
-            TextRecognizer recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+//            TextRecognizer recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+            TextRecognizer recognizer =
+                    TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
             InputImage image = InputImage.fromBitmap(croppedBitmap, 0);
 
             recognizer.process(image)
-                    .addOnSuccessListener(new OnSuccessListener<Text>() {
-                      @Override
-                      public void onSuccess(Text visionText) {
+                      .addOnSuccessListener(new OnSuccessListener<Text>() {
+                        @Override
+                        public void onSuccess(Text visionText) {
 
 
-                        runOnUiThread(
-                          new Runnable() {
-                            @Override
-                            public void run() {
-                              String resultText = visionText.getText();
-                              view.setText(resultText);
-                            }
-                        });
-//                        String resultText = visionText.getText();
-//                        if(!resultText.equals("")){
-//                          Toast.makeText(getApplicationContext(), resultText, Toast.LENGTH_SHORT).show();
-//                        }
-//
-//                        List<Text.TextBlock> blocks = visionText.getTextBlocks();
-//                        if (blocks.size() == 0) {
-//                          Toast.makeText(getApplicationContext(), "No text found", Toast.LENGTH_SHORT).show();
-//                          return;
-//                        }
-
-                      }
-                    })
-                    .addOnFailureListener(
-                            new OnFailureListener() {
+                          runOnUiThread(
+                            new Runnable() {
                               @Override
-                              public void onFailure(@NonNull Exception e) {
-                                // Task failed with an exception
-                                // ...
-                                LOGGER.w("이미지 인식 실패");
+                              public void run() {
+                                String resultText = visionText.getText();
+                                view.setText(resultText);
                               }
-                            });
+                          });
+  //                        String resultText = visionText.getText();
+  //                        if(!resultText.equals("")){
+  //                          Toast.makeText(getApplicationContext(), resultText, Toast.LENGTH_SHORT).show();
+  //                        }
+  //
+  //                        List<Text.TextBlock> blocks = visionText.getTextBlocks();
+  //                        if (blocks.size() == 0) {
+  //                          Toast.makeText(getApplicationContext(), "No text found", Toast.LENGTH_SHORT).show();
+  //                          return;
+  //                        }
+
+                        }
+                      })
+                      .addOnFailureListener(
+                              new OnFailureListener() {
+                                @Override
+                                public void onFailure(@NonNull Exception e) {
+                                  // Task failed with an exception
+                                  // ...
+                                  LOGGER.w("이미지 인식 실패");
+                                }
+                              });
 
 
 
@@ -272,10 +285,49 @@ public class DetectorActivity extends CameraActivity implements OnImageAvailable
 
             for (final Detector.Recognition result : results) {
               final RectF location = result.getLocation();
-              if (location != null && result.getConfidence() >= minimumConfidence && result.getTitle().equals("bus")) {
+              if (location != null && result.getConfidence() >= 0.8 && result.getTitle().equals("bell")) {
                 canvas.drawRect(location, paint);
 
+//                location.set(canvas.getClipBounds());
                 cropToFrameTransform.mapRect(location);
+//                location.centerX()
+//                location.set(location.centerX()-10, location.centerY()-10, location.centerX()+10, location.centerY()+10);
+//                location.set();
+                float cx = location.centerX();
+                float cy = location.centerY();
+
+//                if(previewWidth*(2/6) <= cx && cx <= previewWidth*(1-2/6) && previewHeight*(2/6) <= cy && cy <= previewHeight*(1-2/6)) {
+//                  vibrator.vibrate(VibrationEffect.createPredefined(EFFECT_TICK));
+//                }
+//                else if(previewWidth*(1/6) <= cx && cx <= previewWidth*(1-1/6) && previewHeight*(1/6) <= cy && cy <= previewHeight*(1-1/6)){
+//                  vibrator.vibrate(VibrationEffect.createPredefined(EFFECT_CLICK));
+//                }
+//                else {
+//                  vibrator.vibrate(VibrationEffect.createPredefined(EFFECT_TICK));
+//                }
+
+                if(previewWidth*0.25 <= cx && cx <= previewWidth*0.75 && previewHeight*0.25 <= cy && cy <= previewHeight*0.75) {
+                  vibrator.vibrate(VibrationEffect.createPredefined(EFFECT_HEAVY_CLICK));
+//                  vibrator.vibrate(VibrationEffect.createOneShot(100, 255));
+                }
+                else {
+                  vibrator.vibrate(VibrationEffect.createPredefined(EFFECT_TICK));
+//                  vibrator.vibrate(VibrationEffect.createOneShot(50, 1));
+                }
+
+                Location loc1 = new Location("");
+                loc1.setLatitude(previewWidth/2);
+                loc1.setLongitude(previewHeight/2);
+
+                Location loc2 = new Location("");
+                loc2.setLatitude(cx);
+                loc2.setLongitude(cy);
+                float distanceInMeters = loc1.distanceTo(loc2);
+                loc2.setLatitude(previewWidth);
+                loc2.setLongitude(previewHeight);
+                float distanceMax = loc1.distanceTo(loc2);
+
+//                vibrator.vibrate(VibrationEffect.createOneShot(50, 200*(int)(distanceInMeters/distanceMax)+55));
 
                 result.setLocation(location);
                 mappedRecognitions.add(result);

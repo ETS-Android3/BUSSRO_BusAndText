@@ -48,7 +48,7 @@ import org.tensorflow.lite.examples.detection.tflite.TFLiteObjectDetectionAPIMod
 @RunWith(AndroidJUnit4.class)
 public class DetectorTest {
 
-  private static final int MODEL_INPUT_SIZE = 300;
+  private static final int MODEL_INPUT_SIZE = 300; // detect.tflite = 300, model.tflite = 448
   private static final boolean IS_MODEL_QUANTIZED = true;
   private static final String MODEL_FILE = "detect.tflite";
   private static final String LABELS_FILE = "labelmap.txt";
